@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Moteros Solidarios · Ayuda Venezuela</title>
+<meta name="description" content="Plataforma del gremio motociclista de Panamá para coordinar donaciones de alimentos y artículos médicos hacia las zonas afectadas en Venezuela.">
+
+<!-- ====== Leaflet (mapa gratuito) ====== -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<style>
+  :root{
+    --rojo:#e63946;
+    --rojo-osc:#b3202c;
+    --oscuro:#1d2230;
+    --oscuro-2:#262c3d;
+    --gris:#6b7280;
+    --claro:#f5f6f8;
+    --verde:#2a9d8f;
+    --amarillo:#f4a300;
+    --radio:14px;
+    --sombra:0 6px 20px rgba(0,0,0,.12);
+    --fuente:'Segoe UI',system-ui,-apple-system,Roboto,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;font-family:var(--fuente);color:var(--oscuro);background:var(--claro)}
+  img{max-width:100%}
+  a{color:var(--rojo)}
+
+  /* ---------- Encabezado ---------- */
+  header.top{
+    background:linear-gradient(135deg,var(--oscuro),var(--oscuro-2));
+    color:#fff;padding:18px 16px 16px;position:relative;overflow:hidden;
+  }
+  header.top .logo{display:flex;align-items:center;gap:12px}
+  header.top .logo .moto{font-size:34px;line-height:1}
+  header.top h1{font-size:20px;margin:0;font-weight:800;letter-spacing:.3px}
+  header.top p.sub{margin:6px 0 0;font-size:13px;opacity:.85;max-width:640px;line-height:1.45}
+  .badge{display:inline-block;background:var(--rojo);color:#fff;font-size:11px;font-weight:700;
+    padding:3px 9px;border-radius:99px;margin-top:10px;text-transform:uppercase;letter-spacing:.5px}
+
+  /* ---------- Navegación tabs ---------- */
+  nav.tabs{display:flex;background:#fff;box-shadow:var(--sombra);position:sticky;top:0;z-index:1000}
+  nav.tabs button{
+    flex:1;border:0;background:none;padding:14px 6px 12px;cursor:pointer;
+    font-size:13px;font-weight:700;color:var(--gris);border-bottom:3px solid transparent;
+    display:flex;flex-direction:column;align-items:center;gap:4px;transition:.15s;
+  }
+  nav.tabs button .ic{font-size:20px}
+  nav.tabs button.activo{color:var(--rojo);border-bottom-color:var(--rojo)}
+
+  main{max-width:760px;margin:0 auto;padding:16px}
+  section.vista{display:none;animation:fade .25s ease}
+  section.vista.activa{display:block}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+  /* ---------- Mapa ---------- */
+  #mapa{height:62vh;min-height:340px;border-radius:var(--radio);box-shadow:var(--sombra);z-index:1}
+  .leyenda{display:flex;flex-wrap:wrap;gap:14px;margin:14px 2px 4px;font-size:13px}
+  .leyenda span{display:flex;align-items:center;gap:6px}
+  .punto{width:14px;height:14px;border-radius:50%;display:inline-block;border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.15)}
+  .p-don{background:var(--verde)} .p-mot{background:var(--rojo)} .p-nec{background:var(--amarillo)}
+  .contador{font-size:13px;color:var(--gris);margin:10px 2px}
+
+  /* ---------- Formularios ---------- */
+  .card{background:#fff;border-radius:var(--radio);box-shadow:var(--sombra);padding:20px;margin-bottom:18px}
+  .card h2{margin:0 0 4px;font-size:18px}
+  .card .desc{margin:0 0 16px;font-size:13.5px;color:var(--gris);line-height:1.5}
+  label{display:block;font-size:13px;font-weight:700;margin:14px 0 6px}
+  label .opt{font-weight:400;color:var(--gris)}
+  input,select,textarea{
+    width:100%;padding:11px 12px;border:1.5px solid #dfe3ea;border-radius:10px;
+    font-size:15px;font-family:inherit;background:#fff;transition:.15s;
+  }
+  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--rojo);box-shadow:0 0 0 3px rgba(230,57,70,.12)}
+  textarea{min-height:80px;resize:vertical}
+  .fila{display:flex;gap:12px}.fila>div{flex:1}
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+  .chip{border:1.5px solid #dfe3ea;border-radius:99px;padding:8px 14px;font-size:13px;cursor:pointer;user-select:none;background:#fff}
+  .chip.sel{background:var(--rojo);color:#fff;border-color:var(--rojo)}
+
+  .geo{display:flex;align-items:center;gap:10px;background:#f0f4f8;border-radius:10px;padding:10px 12px;font-size:13px;margin-top:6px}
+  .geo .estado{flex:1;color:var(--gris)}
+  .geo .estado.ok{color:var(--verde);font-weight:700}
+  .btn-geo{white-space:nowrap;background:var(--oscuro);color:#fff;border:0;padding:9px 12px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer}
+
+  .btn{width:100%;background:var(--rojo);color:#fff;border:0;padding:15px;border-radius:12px;
+    font-size:16px;font-weight:800;cursor:pointer;margin-top:20px;transition:.15s}
+  .btn:hover{background:var(--rojo-osc)}
+  .btn:disabled{opacity:.5;cursor:not-allowed}
+
+  .preview{margin-top:10px;display:none}
+  .preview img{border-radius:10px;max-height:160px}
+
+  .ok-msg{display:none;background:#e8f6f1;border:1px solid var(--verde);color:#176b5f;
+    padding:14px;border-radius:12px;font-size:14px;margin-bottom:16px;line-height:1.5}
+
+  .aviso{background:#fff8e6;border:1px solid var(--amarillo);border-radius:12px;
+    padding:12px 14px;font-size:12.5px;color:#7a5c00;margin-bottom:16px;line-height:1.5}
+  .aviso b{color:#5c4500}
+  .aviso code{background:#fff;padding:1px 5px;border-radius:4px}
+
+  footer{text-align:center;padding:24px 16px 40px;color:var(--gris);font-size:12px;line-height:1.6}
+  .leaflet-popup-content{font-family:var(--fuente);font-size:13px;line-height:1.5}
+  .leaflet-popup-content b{font-size:14px}
+  .pop-tag{display:inline-block;font-size:10px;font-weight:700;color:#fff;padding:2px 8px;border-radius:99px;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="logo">
+    <span class="moto">🏍️</span>
+    <div>
+      <h1>Moteros Solidarios</h1>
+      <p class="sub">Gremio motociclista de Panamá coordinando ayuda para las zonas afectadas en Venezuela. Reporta tu donación, registra tu moto y mira el mapa de la operación.</p>
+    </div>
+  </div>
+  <span class="badge" id="modoBadge">Modo demostración</span>
+</header>
+
+<nav class="tabs">
+  <button class="activo" data-vista="mapa"><span class="ic">🗺️</span>Mapa</button>
+  <button data-vista="donar"><span class="ic">🎁</span>Donar</button>
+  <button data-vista="motero"><span class="ic">🏍️</span>Mi moto</button>
+</nav>
+
+<main>
+  <!-- ========== MAPA ========== -->
+  <section class="vista activa" id="vista-mapa">
+    <div id="mapa"></div>
+    <div class="leyenda">
+      <span><i class="punto p-don"></i> Donaciones disponibles</span>
+      <span><i class="punto p-mot"></i> Moteros disponibles</span>
+      <span><i class="punto p-nec"></i> Necesidades</span>
+    </div>
+    <p class="contador" id="contador">Cargando puntos…</p>
+  </section>
+
+  <!-- ========== DONAR ========== -->
+  <section class="vista" id="vista-donar">
+    <div class="card">
+      <div class="ok-msg" id="ok-donar">✅ ¡Gracias! Tu donación quedó registrada y ya aparece en el mapa. Un motero del gremio te contactará para coordinar el retiro.</div>
+      <h2>Quiero donar 🎁</h2>
+      <p class="desc">Cuéntanos qué vas a donar y dónde recogerlo. Tu punto aparecerá en el mapa para que un motero coordine el retiro.</p>
+      <form id="form-donar">
+        <label>Tu nombre</label>
+        <input name="nombre" required placeholder="Nombre y apellido">
+
+        <label>WhatsApp / teléfono</label>
+        <input name="telefono" required inputmode="tel" placeholder="Ej: +507 6000-0000">
+
+        <label>¿Qué vas a donar?</label>
+        <div class="chips" id="chips-tipo">
+          <div class="chip" data-v="Alimentos">🍞 Alimentos</div>
+          <div class="chip" data-v="Artículos médicos">💊 Artículos médicos</div>
+          <div class="chip" data-v="Agua">💧 Agua</div>
+          <div class="chip" data-v="Ropa">👕 Ropa</div>
+          <div class="chip" data-v="Otros">📦 Otros</div>
+        </div>
+        <input type="hidden" name="tipo" id="tipo-donar" required>
+
+        <label>Descripción <span class="opt">(cantidad, detalles)</span></label>
+        <textarea name="descripcion" placeholder="Ej: 5 cajas de enlatados y arroz, 20 kg aprox."></textarea>
+
+        <label>Dirección o referencia del lugar</label>
+        <input name="direccion" required placeholder="Ej: Vía España, frente al supermercado X">
+
+        <label>Tu ubicación en el mapa</label>
+        <div class="geo">
+          <span class="estado" id="geo-donar-txt">Toca el botón para marcar tu ubicación 📍</span>
+          <button type="button" class="btn-geo" id="geo-donar-btn">Usar mi ubicación</button>
+        </div>
+        <input type="hidden" name="lat" id="lat-donar">
+        <input type="hidden" name="lng" id="lng-donar">
+
+        <label>Foto de la donación <span class="opt">(opcional)</span></label>
+        <input type="file" accept="image/*" id="foto-donar">
+        <div class="preview" id="prev-donar"><img></div>
+
+        <button type="submit" class="btn">Publicar mi donación en el mapa</button>
+      </form>
+    </div>
+  </section>
+
+  <!-- ========== MOTERO ========== -->
+  <section class="vista" id="vista-motero">
+    <div class="card">
+      <div class="ok-msg" id="ok-motero">✅ ¡Registrado! Gracias por sumar tu moto a la operación. Apareces en el mapa como motero disponible.</div>
+      <h2>Registrar mi moto 🏍️</h2>
+      <p class="desc">Súmate como transportista voluntario. Tu zona aparecerá en el mapa para asignarte retiros y entregas cercanas.</p>
+      <form id="form-motero">
+        <label>Tu nombre</label>
+        <input name="nombre" required placeholder="Nombre y apellido">
+
+        <label>WhatsApp / teléfono</label>
+        <input name="telefono" required inputmode="tel" placeholder="Ej: +507 6000-0000">
+
+        <div class="fila">
+          <div>
+            <label>Marca / modelo de la moto</label>
+            <input name="moto" required placeholder="Ej: Honda XR 150">
+          </div>
+          <div>
+            <label>Placa</label>
+            <input name="placa" placeholder="Ej: AB1234">
+          </div>
+        </div>
+
+        <label>¿Cuánto puedes cargar?</label>
+        <select name="capacidad" required>
+          <option value="">Selecciona…</option>
+          <option>Liviano (paquetes pequeños)</option>
+          <option>Mediano (cajas, baúl)</option>
+          <option>Pesado (con remolque / parrilla grande)</option>
+        </select>
+
+        <label>Zona donde te mueves</label>
+        <input name="zona" required placeholder="Ej: Panamá Este, San Miguelito">
+
+        <label>Tu ubicación base en el mapa</label>
+        <div class="geo">
+          <span class="estado" id="geo-motero-txt">Toca el botón para marcar tu zona 📍</span>
+          <button type="button" class="btn-geo" id="geo-motero-btn">Usar mi ubicación</button>
+        </div>
+        <input type="hidden" name="lat" id="lat-motero">
+        <input type="hidden" name="lng" id="lng-motero">
+
+        <button type="submit" class="btn">Sumar mi moto a la operación</button>
+      </form>
+    </div>
+  </section>
+
+  <div class="aviso" id="aviso-demo">
+    <b>⚙️ Modo demostración activo.</b> Ahora mismo los datos se guardan solo en este dispositivo para que puedas probar todo. Para que TODO el gremio comparta los mismos datos, sigue la <b>Guía de conexión a Google</b> y pega tus enlaces en la sección <code>CONFIG</code> del archivo. Toma 15 minutos y es gratis.
+  </div>
+</main>
+
+<footer>
+  Moteros Solidarios · Gremio motociclista de Panamá 🇵🇦<br>
+  Plataforma de coordinación de ayuda humanitaria · Hecha con ❤️ para quienes ayudan.
+</footer>
+
+<script>
+/* =================================================================
+   ⚙️  CONFIG  —  CONEXIÓN A GOOGLE  (edita SOLO esto)
+   -----------------------------------------------------------------
+   Mientras estos valores estén vacíos, la página funciona en
+   "modo demostración" (guarda en este dispositivo).
+   Sigue la GUIA_CONEXION_GOOGLE.md para llenarlos. 15 min, gratis.
+================================================================= */
+const CONFIG = {
+  // 1) URL que termina en /formResponse de tu Google Form de DONACIONES
+  donacionFormUrl: "",
+  // entry.IDs de cada pregunta del form de donaciones
+  donacionFields: {
+    nombre:"", telefono:"", tipo:"", descripcion:"", direccion:"", lat:"", lng:""
+  },
+
+  // 2) URL /formResponse de tu Google Form de MOTEROS
+  moteroFormUrl: "",
+  moteroFields: {
+    nombre:"", telefono:"", moto:"", placa:"", capacidad:"", zona:"", lat:"", lng:""
+  },
+
+  // 3) URL CSV publicada de tu Google Sheet (para pintar el mapa).
+  //    Debe terminar en output=csv
+  sheetDonacionesCSV: "",
+  sheetMoterosCSV: "",
+
+  // Centro inicial del mapa (Ciudad de Panamá por defecto)
+  mapaCentro: [8.9824, -79.5199],
+  mapaZoom: 8
+};
+/* ============ FIN DE LA CONFIGURACIÓN ============ */
+
+
+/* ---------- Utilidades ---------- */
+const $ = s => document.querySelector(s);
+const conectado = CONFIG.donacionFormUrl && CONFIG.moteroFormUrl;
+const LS = { don:'ms_donaciones', mot:'ms_moteros' };
+const leerLS = k => JSON.parse(localStorage.getItem(k) || '[]');
+const guardarLS = (k,v) => localStorage.setItem(k, JSON.stringify(v));
+
+if(conectado){
+  $('#modoBadge').textContent = 'Operación en vivo';
+  $('#modoBadge').style.background = 'var(--verde)';
+  $('#aviso-demo').style.display = 'none';
+}
+
+/* ---------- Tabs ---------- */
+document.querySelectorAll('nav.tabs button').forEach(b=>{
+  b.onclick = ()=>{
+    document.querySelectorAll('nav.tabs button').forEach(x=>x.classList.remove('activo'));
+    document.querySelectorAll('.vista').forEach(x=>x.classList.remove('activa'));
+    b.classList.add('activo');
+    $('#vista-'+b.dataset.vista).classList.add('activa');
+    if(b.dataset.vista==='mapa' && window._map){ setTimeout(()=>window._map.invalidateSize(),120); }
+  };
+});
+
+/* ---------- Chips tipo de donación ---------- */
+document.querySelectorAll('#chips-tipo .chip').forEach(c=>{
+  c.onclick = ()=>{
+    document.querySelectorAll('#chips-tipo .chip').forEach(x=>x.classList.remove('sel'));
+    c.classList.add('sel');
+    $('#tipo-donar').value = c.dataset.v;
+  };
+});
+
+/* ---------- Geolocalización ---------- */
+function pedirUbicacion(txtEl, btnEl, latEl, lngEl){
+  if(!navigator.geolocation){ txtEl.textContent='Tu navegador no soporta ubicación. Usa la dirección escrita.'; return; }
+  txtEl.textContent='Obteniendo ubicación…'; btnEl.disabled=true;
+  navigator.geolocation.getCurrentPosition(
+    p=>{
+      latEl.value=p.coords.latitude.toFixed(6);
+      lngEl.value=p.coords.longitude.toFixed(6);
+      txtEl.textContent='✓ Ubicación marcada correctamente';
+      txtEl.classList.add('ok'); btnEl.disabled=false; btnEl.textContent='Actualizar';
+    },
+    ()=>{ txtEl.textContent='No se pudo obtener. Escribe bien la dirección y la marcaremos manualmente.'; btnEl.disabled=false; }
+  );
+}
+$('#geo-donar-btn').onclick = ()=>pedirUbicacion($('#geo-donar-txt'),$('#geo-donar-btn'),$('#lat-donar'),$('#lng-donar'));
+$('#geo-motero-btn').onclick = ()=>pedirUbicacion($('#geo-motero-txt'),$('#geo-motero-btn'),$('#lat-motero'),$('#lng-motero'));
+
+/* ---------- Vista previa de foto ---------- */
+let fotoBase64 = "";
+$('#foto-donar').onchange = e=>{
+  const f = e.target.files[0]; if(!f) return;
+  const r = new FileReader();
+  r.onload = ev=>{ fotoBase64 = ev.target.result; const p=$('#prev-donar'); p.style.display='block'; p.querySelector('img').src=ev.target.result; };
+  r.readAsDataURL(f);
+};
+
+/* ---------- Enviar a Google Form ---------- */
+function enviarGoogle(url, fields, datos){
+  const fd = new FormData();
+  for(const k in fields){ if(fields[k]) fd.append(fields[k], datos[k] ?? ''); }
+  return fetch(url, {method:'POST', mode:'no-cors', body:fd});
+}
+
+/* ---------- Formulario DONACIÓN ---------- */
+$('#form-donar').onsubmit = async e=>{
+  e.preventDefault();
+  const f = e.target;
+  if(!$('#tipo-donar').value){ alert('Selecciona qué vas a donar.'); return; }
+  const datos = {
+    nombre:f.nombre.value, telefono:f.telefono.value, tipo:f.tipo.value,
+    descripcion:f.descripcion.value, direccion:f.direccion.value,
+    lat:f.lat.value, lng:f.lng.value, foto:fotoBase64, clase:'donacion', fecha:Date.now()
+  };
+  const btn = f.querySelector('.btn'); btn.disabled=true; btn.textContent='Enviando…';
+  try{
+    if(conectado) await enviarGoogle(CONFIG.donacionFormUrl, CONFIG.donacionFields, datos);
+    const arr = leerLS(LS.don); arr.push(datos); guardarLS(LS.don, arr);
+    $('#ok-donar').style.display='block';
+    f.reset(); $('#tipo-donar').value=''; fotoBase64=''; $('#prev-donar').style.display='none';
+    document.querySelectorAll('#chips-tipo .chip').forEach(x=>x.classList.remove('sel'));
+    $('#geo-donar-txt').textContent='Toca el botón para marcar tu ubicación 📍';$('#geo-donar-txt').classList.remove('ok');
+    pintarMapa();
+    $('#ok-donar').scrollIntoView({behavior:'smooth',block:'center'});
+  }catch(err){ alert('Hubo un problema al enviar. Revisa tu conexión.'); }
+  btn.disabled=false; btn.textContent='Publicar mi donación en el mapa';
+};
+
+/* ---------- Formulario MOTERO ---------- */
+$('#form-motero').onsubmit = async e=>{
+  e.preventDefault();
+  const f = e.target;
+  const datos = {
+    nombre:f.nombre.value, telefono:f.telefono.value, moto:f.moto.value,
+    placa:f.placa.value, capacidad:f.capacidad.value, zona:f.zona.value,
+    lat:f.lat.value, lng:f.lng.value, clase:'motero', fecha:Date.now()
+  };
+  const btn = f.querySelector('.btn'); btn.disabled=true; btn.textContent='Enviando…';
+  try{
+    if(conectado) await enviarGoogle(CONFIG.moteroFormUrl, CONFIG.moteroFields, datos);
+    const arr = leerLS(LS.mot); arr.push(datos); guardarLS(LS.mot, arr);
+    $('#ok-motero').style.display='block';
+    f.reset();
+    $('#geo-motero-txt').textContent='Toca el botón para marcar tu zona 📍';$('#geo-motero-txt').classList.remove('ok');
+    pintarMapa();
+    $('#ok-motero').scrollIntoView({behavior:'smooth',block:'center'});
+  }catch(err){ alert('Hubo un problema al enviar. Revisa tu conexión.'); }
+  btn.disabled=false; btn.textContent='Sumar mi moto a la operación';
+};
+
+/* ---------- Mapa ---------- */
+let map, capa;
+function initMapa(){
+  map = L.map('mapa').setView(CONFIG.mapaCentro, CONFIG.mapaZoom);
+  window._map = map;
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+    attribution:'© OpenStreetMap', maxZoom:19
+  }).addTo(map);
+  capa = L.layerGroup().addTo(map);
+  pintarMapa();
+}
+function icono(color){
+  return L.divIcon({className:'',html:'<div style="width:18px;height:18px;border-radius:50%;background:'+color+';border:3px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4)"></div>',iconSize:[18,18],iconAnchor:[9,9]});
+}
+const COL = {donacion:'#2a9d8f', motero:'#e63946', necesidad:'#f4a300'};
+
+function splitCSVLine(line){
+  const out=[]; let cur=''; let q=false; const QU='"';
+  for(let i=0;i<line.length;i++){ const ch=line[i];
+    if(q){ if(ch===QU){ if(line[i+1]===QU){cur+=QU;i++;} else q=false; } else cur+=ch; }
+    else { if(ch===QU) q=true; else if(ch===',') {out.push(cur);cur='';} else cur+=ch; }
+  }
+  out.push(cur); return out;
+}
+function parseCSV(t){
+  const lineas = t.replace(/\r/g,'').trim().split('\n'); if(lineas.length<2) return [];
+  const cab = splitCSVLine(lineas[0]).map(c=>c.trim().toLowerCase());
+  return lineas.slice(1).map(l=>{
+    const v = splitCSVLine(l); const o={};
+    cab.forEach((c,i)=>o[c]=(v[i]||'').trim()); return o;
+  });
+}
+function num(x){ const n=parseFloat(x); return isNaN(n)?null:n; }
+
+async function cargarCSV(url, clase){
+  try{
+    const r = await fetch(url); const t = await r.text();
+    return parseCSV(t).map(o=>({
+      clase, nombre:o.nombre||o.name||'', telefono:o.telefono||o.whatsapp||'',
+      tipo:o.tipo||'', descripcion:o.descripcion||'', direccion:o.direccion||o.zona||'',
+      moto:o.moto||'', capacidad:o.capacidad||'', zona:o.zona||'',
+      lat:num(o.lat||o.latitud), lng:num(o.lng||o.lon||o.longitud)
+    })).filter(o=>o.lat&&o.lng);
+  }catch(e){ console.warn('No se pudo leer CSV', clase, e); return []; }
+}
+
+async function pintarMapa(){
+  if(!map) return;
+  capa.clearLayers();
+  let puntos = [];
+  if(conectado){
+    if(CONFIG.sheetDonacionesCSV) puntos = puntos.concat(await cargarCSV(CONFIG.sheetDonacionesCSV,'donacion'));
+    if(CONFIG.sheetMoterosCSV)    puntos = puntos.concat(await cargarCSV(CONFIG.sheetMoterosCSV,'motero'));
+  }else{
+    puntos = leerLS(LS.don).concat(leerLS(LS.mot)).map(d=>({...d, lat:num(d.lat), lng:num(d.lng)}));
+  }
+  let n=0;
+  puntos.forEach(p=>{
+    if(!p.lat||!p.lng) return;
+    n++;
+    const col = COL[p.clase] || '#888';
+    const etq = p.clase==='donacion'?'Donación':p.clase==='motero'?'Motero':'Necesidad';
+    let html = '<span class="pop-tag" style="background:'+col+'">'+etq+'</span><br><b>'+(p.nombre||'Sin nombre')+'</b><br>';
+    if(p.clase==='donacion'){
+      html += (p.tipo?'📦 '+p.tipo+'<br>':'')+(p.descripcion?p.descripcion+'<br>':'')+(p.direccion?'📍 '+p.direccion+'<br>':'');
+      if(p.foto) html += '<img src="'+p.foto+'" style="margin-top:6px;border-radius:8px;max-height:120px"><br>';
+    }else if(p.clase==='motero'){
+      html += (p.moto?'🏍️ '+p.moto+'<br>':'')+(p.capacidad?'📦 '+p.capacidad+'<br>':'')+(p.zona?'📍 '+p.zona+'<br>':'');
+    }
+    if(p.telefono) html += '<a href="https://wa.me/'+(p.telefono+'').replace(/\D/g,'')+'" target="_blank">💬 Contactar por WhatsApp</a>';
+    L.marker([p.lat,p.lng],{icon:icono(col)}).bindPopup(html).addTo(capa);
+  });
+  $('#contador').textContent = n? (n+' punto(s) en el mapa.') : 'Aún no hay puntos. ¡Sé el primero en donar o registrar tu moto!';
+  if(n){
+    const grp = L.featureGroup(capa.getLayers());
+    try{ map.fitBounds(grp.getBounds().pad(0.25)); }catch(e){}
+  }
+}
+
+initMapa();
+</script>
+</body>
+</html>
