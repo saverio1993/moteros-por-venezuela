@@ -253,22 +253,24 @@
 ================================================================= */
 const CONFIG = {
   // 1) URL que termina en /formResponse de tu Google Form de DONACIONES
-  donacionFormUrl: "",
+  donacionFormUrl: "https://docs.google.com/forms/d/e/1FAIpQLSc6EGCd6vKsA4dHkK-_NElKEF8yfoMQUn8IGjvygp9xaVk9RQ/formResponse",
   // entry.IDs de cada pregunta del form de donaciones
   donacionFields: {
-    nombre:"", telefono:"", tipo:"", descripcion:"", direccion:"", lat:"", lng:""
+    nombre:"entry.1355943256", telefono:"entry.1692988640", tipo:"entry.1698159226",
+    descripcion:"entry.1543293738", direccion:"entry.36642996", lat:"entry.388078311", lng:"entry.1062539704"
   },
 
   // 2) URL /formResponse de tu Google Form de MOTEROS
-  moteroFormUrl: "",
+  moteroFormUrl: "https://docs.google.com/forms/d/e/1FAIpQLSdoQzSNaZXP6DuH7UcyoVeG_fwW35PXA1l2ReemYV1CJWvQ7Q/formResponse",
   moteroFields: {
-    nombre:"", telefono:"", moto:"", placa:"", capacidad:"", zona:"", lat:"", lng:""
+    nombre:"entry.553274557", telefono:"entry.1018544073", moto:"entry.1660038538", placa:"entry.2112343797",
+    capacidad:"entry.1558353453", zona:"entry.265188339", lat:"entry.2106682618", lng:"entry.473464489"
   },
 
   // 3) URL CSV publicada de tu Google Sheet (para pintar el mapa).
   //    Debe terminar en output=csv
-  sheetDonacionesCSV: "",
-  sheetMoterosCSV: "",
+  sheetDonacionesCSV: "https://docs.google.com/spreadsheets/d/e/2PACX-1vQawFjg5Vm8tB9kPwnUs043O1YbpL8EiWEnubhc8wUjisXo6rW6P29voziYoy7W2n4g03Wrj9s-Fq7x/pub?output=csv",
+  sheetMoterosCSV: "https://docs.google.com/spreadsheets/d/e/2PACX-1vS9eYh-SR6nFYSipuX6X-ArvxEioSAkglZ9RHDkoQfnyAxLFBP9whNBvGZknDow4D1WAUhLCgTB3o63/pub?output=csv",
 
   // Centro inicial del mapa (Ciudad de Panamá por defecto)
   mapaCentro: [8.9824, -79.5199],
