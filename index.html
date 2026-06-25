@@ -62,7 +62,12 @@
   .leyenda span{display:flex;align-items:center;gap:6px}
   .punto{width:14px;height:14px;border-radius:50%;display:inline-block;border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.15)}
   .p-don{background:var(--verde)} .p-mot{background:var(--rojo)} .p-nec{background:var(--amarillo)}
-  .contador{font-size:13px;color:var(--gris);margin:10px 2px}
+  .contador{font-size:13px;color:var(--gris);margin:0}
+  .map-bar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:12px 2px}
+  .btn-refrescar{background:var(--oscuro);color:#fff;border:0;padding:9px 16px;border-radius:99px;
+    font-size:13px;font-weight:700;cursor:pointer;transition:.15s;white-space:nowrap}
+  .btn-refrescar:hover{background:#000}
+  .btn-refrescar:disabled{opacity:.6;cursor:wait}
 
   /* ---------- Formularios ---------- */
   .card{background:#fff;border-radius:var(--radio);box-shadow:var(--sombra);padding:20px;margin-bottom:18px}
@@ -136,7 +141,10 @@
       <span><i class="punto p-mot"></i> Moteros disponibles</span>
       <span><i class="punto p-nec"></i> Necesidades</span>
     </div>
-    <p class="contador" id="contador">Cargando puntos…</p>
+    <div class="map-bar">
+      <button id="btn-refrescar" class="btn-refrescar">🔄 Actualizar mapa</button>
+      <p class="contador" id="contador">Cargando puntos…</p>
+    </div>
   </section>
 
   <!-- ========== DONAR ========== -->
@@ -427,7 +435,8 @@ function num(x){ const n=parseFloat(x); return isNaN(n)?null:n; }
 
 async function cargarCSV(url, clase){
   try{
-    const r = await fetch(url); const t = await r.text();
+    const bust = (url.indexOf('?')>=0?'&':'?') + '_cb=' + Date.now();
+    const r = await fetch(url + bust, {cache:'no-store'}); const t = await r.text();
     return parseCSV(t).map(o=>({
       clase, nombre:o.nombre||o.name||'', telefono:o.telefono||o.whatsapp||'',
       tipo:o.tipo||'', descripcion:o.descripcion||'', direccion:o.direccion||o.zona||'',
@@ -463,12 +472,19 @@ async function pintarMapa(){
     if(p.telefono) html += '<a href="https://wa.me/'+(p.telefono+'').replace(/\D/g,'')+'" target="_blank">💬 Contactar por WhatsApp</a>';
     L.marker([p.lat,p.lng],{icon:icono(col)}).bindPopup(html).addTo(capa);
   });
-  $('#contador').textContent = n? (n+' punto(s) en el mapa.') : 'Aún no hay puntos. ¡Sé el primero en donar o registrar tu moto!';
+  const hora = new Date().toLocaleTimeString('es-PA',{hour:'2-digit',minute:'2-digit'});
+  $('#contador').textContent = (n? (n+' punto(s) en el mapa.') : 'Aún no hay puntos. ¡Sé el primero en donar o registrar tu moto!') + ' · Actualizado ' + hora;
   if(n){
     const grp = L.featureGroup(capa.getLayers());
     try{ map.fitBounds(grp.getBounds().pad(0.25)); }catch(e){}
   }
 }
+
+$('#btn-refrescar').onclick = async ()=>{
+  const b = $('#btn-refrescar'); b.disabled=true; const txt=b.textContent; b.textContent='Actualizando…';
+  await pintarMapa();
+  b.textContent=txt; b.disabled=false;
+};
 
 initMapa();
 </script>
