@@ -278,10 +278,13 @@ const CONFIG = {
     capacidad:"entry.1558353453", zona:"entry.265188339", lat:"entry.2106682618", lng:"entry.473464489"
   },
 
-  // 3) URL CSV publicada de tu Google Sheet (para pintar el mapa).
-  //    Debe terminar en output=csv
-  sheetDonacionesCSV: "https://docs.google.com/spreadsheets/d/e/2PACX-1vQawFjg5Vm8tB9kPwnUs043O1YbpL8EiWEnubhc8wUjisXo6rW6P29voziYoy7W2n4g03Wrj9s-Fq7x/pub?output=csv",
-  sheetMoterosCSV: "https://docs.google.com/spreadsheets/d/e/2PACX-1vS9eYh-SR6nFYSipuX6X-ArvxEioSAkglZ9RHDkoQfnyAxLFBP9whNBvGZknDow4D1WAUhLCgTB3o63/pub?output=csv",
+  // 3) Fuente de datos del mapa. Primario = gviz (casi en tiempo real, requiere
+  //    que la hoja esté compartida "Cualquiera con el enlace: Lector").
+  //    Si gviz falla, usa automáticamente el CSV publicado (con caché).
+  sheetDonacionesCSV: "https://docs.google.com/spreadsheets/d/1cspO46oGDn5puYBCS3meaED5ehm2jXJo7NLvRGAVH1M/gviz/tq?tqx=out:csv&gid=1864086182",
+  sheetMoterosCSV: "https://docs.google.com/spreadsheets/d/1GYJUuCJEPHRIPDyz9Kgv4U_jW4lAYvt8uRlNKR9qYhU/gviz/tq?tqx=out:csv&gid=1932351896",
+  sheetDonacionesCSVfallback: "https://docs.google.com/spreadsheets/d/e/2PACX-1vQawFjg5Vm8tB9kPwnUs043O1YbpL8EiWEnubhc8wUjisXo6rW6P29voziYoy7W2n4g03Wrj9s-Fq7x/pub?output=csv",
+  sheetMoterosCSVfallback: "https://docs.google.com/spreadsheets/d/e/2PACX-1vS9eYh-SR6nFYSipuX6X-ArvxEioSAkglZ9RHDkoQfnyAxLFBP9whNBvGZknDow4D1WAUhLCgTB3o63/pub?output=csv",
 
   // Centro inicial del mapa (Ciudad de Panamá por defecto)
   mapaCentro: [8.9824, -79.5199],
@@ -436,17 +439,28 @@ function parseCSV(t){
 }
 function num(x){ const n=parseFloat(x); return isNaN(n)?null:n; }
 
-async function cargarCSV(url, clase){
-  try{
-    const bust = (url.indexOf('?')>=0?'&':'?') + '_cb=' + Date.now();
-    const r = await fetch(url + bust, {cache:'no-store'}); const t = await r.text();
-    return parseCSV(t).map(o=>({
-      clase, nombre:o.nombre||o.name||'', telefono:o.telefono||o.whatsapp||'',
-      tipo:o.tipo||'', descripcion:o.descripcion||'', direccion:o.direccion||o.zona||'',
-      moto:o.moto||'', capacidad:o.capacidad||'', zona:o.zona||'',
-      lat:num(o.lat||o.latitud), lng:num(o.lng||o.lon||o.longitud)
-    })).filter(o=>o.lat&&o.lng);
-  }catch(e){ console.warn('No se pudo leer CSV', clase, e); return []; }
+async function intentoCSV(u){
+  const bust = u + (u.indexOf('?')>=0?'&':'?') + '_cb=' + Date.now();
+  const r = await fetch(bust, {cache:'no-store'});
+  const t = await r.text();
+  if(!r.ok) throw new Error('status '+r.status);
+  if(t.toLowerCase().indexOf('lat')<0) throw new Error('respuesta no es CSV válido');
+  return t;
+}
+async function cargarCSV(url, clase, fallback){
+  let t = null;
+  try{ t = await intentoCSV(url); }
+  catch(e){
+    console.warn('Fuente primaria falló', clase, e);
+    if(fallback){ try{ t = await intentoCSV(fallback); }catch(e2){ console.warn('Respaldo también falló', clase, e2); } }
+  }
+  if(t===null) return [];
+  return parseCSV(t).map(o=>({
+    clase, nombre:o.nombre||o.name||'', telefono:o.telefono||o.whatsapp||'',
+    tipo:o.tipo||'', descripcion:o.descripcion||'', direccion:o.direccion||o.zona||'',
+    moto:o.moto||'', capacidad:o.capacidad||'', zona:o.zona||'',
+    lat:num(o.lat||o.latitud), lng:num(o.lng||o.lon||o.longitud)
+  })).filter(o=>o.lat&&o.lng);
 }
 
 async function pintarMapa(){
@@ -454,8 +468,8 @@ async function pintarMapa(){
   capa.clearLayers();
   let puntos = [];
   if(conectado){
-    if(CONFIG.sheetDonacionesCSV) puntos = puntos.concat(await cargarCSV(CONFIG.sheetDonacionesCSV,'donacion'));
-    if(CONFIG.sheetMoterosCSV)    puntos = puntos.concat(await cargarCSV(CONFIG.sheetMoterosCSV,'motero'));
+    if(CONFIG.sheetDonacionesCSV) puntos = puntos.concat(await cargarCSV(CONFIG.sheetDonacionesCSV,'donacion',CONFIG.sheetDonacionesCSVfallback));
+    if(CONFIG.sheetMoterosCSV)    puntos = puntos.concat(await cargarCSV(CONFIG.sheetMoterosCSV,'motero',CONFIG.sheetMoterosCSVfallback));
   }else{
     puntos = leerLS(LS.don).concat(leerLS(LS.mot)).map(d=>({...d, lat:num(d.lat), lng:num(d.lng)}));
   }
