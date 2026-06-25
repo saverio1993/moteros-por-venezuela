@@ -111,6 +111,9 @@
   .leaflet-popup-content{font-family:var(--fuente);font-size:13px;line-height:1.5}
   .leaflet-popup-content b{font-size:14px}
   .pop-tag{display:inline-block;font-size:10px;font-weight:700;color:#fff;padding:2px 8px;border-radius:99px;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px}
+  .mapa-etq{background:var(--oscuro);color:#fff;border:0;border-radius:9px;padding:5px 11px;
+    font-size:14px;font-weight:800;box-shadow:0 3px 8px rgba(0,0,0,.35);white-space:nowrap}
+  .mapa-etq.leaflet-tooltip-top:before{border-top-color:var(--oscuro)}
 </style>
 </head>
 <body>
@@ -411,7 +414,7 @@ function initMapa(){
   pintarMapa();
 }
 function icono(color){
-  return L.divIcon({className:'',html:'<div style="width:18px;height:18px;border-radius:50%;background:'+color+';border:3px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4)"></div>',iconSize:[18,18],iconAnchor:[9,9]});
+  return L.divIcon({className:'',html:'<div style="width:28px;height:28px;border-radius:50%;background:'+color+';border:4px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.5)"></div>',iconSize:[28,28],iconAnchor:[14,14]});
 }
 const COL = {donacion:'#2a9d8f', motero:'#e63946', necesidad:'#f4a300'};
 
@@ -470,7 +473,11 @@ async function pintarMapa(){
       html += (p.moto?'🏍️ '+p.moto+'<br>':'')+(p.capacidad?'📦 '+p.capacidad+'<br>':'')+(p.zona?'📍 '+p.zona+'<br>':'');
     }
     if(p.telefono) html += '<a href="https://wa.me/'+(p.telefono+'').replace(/\D/g,'')+'" target="_blank">💬 Contactar por WhatsApp</a>';
-    L.marker([p.lat,p.lng],{icon:icono(col)}).bindPopup(html).addTo(capa);
+    const ic = p.clase==='donacion'?'🎁 ':p.clase==='motero'?'🏍️ ':'⚠️ ';
+    const etqTxt = ic + (p.nombre||'Sin nombre');
+    L.marker([p.lat,p.lng],{icon:icono(col)}).bindPopup(html)
+      .bindTooltip(etqTxt,{permanent:true,direction:'top',offset:[0,-16],className:'mapa-etq'})
+      .addTo(capa);
   });
   const hora = new Date().toLocaleTimeString('es-PA',{hour:'2-digit',minute:'2-digit'});
   $('#contador').textContent = (n? (n+' punto(s) en el mapa.') : 'Aún no hay puntos. ¡Sé el primero en donar o registrar tu moto!') + ' · Actualizado ' + hora;
